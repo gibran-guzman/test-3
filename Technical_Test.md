@@ -2,9 +2,9 @@
 
 ## Overview
 
-Build a small product management interface for Fifty Flowers' catalog. The interface must let an internal user manage flower products with full CRUD, media handling, search and filtering. Senior-level concerns (optimistic UI, soft delete with undo, async validation, testing) are offered as **optional bonuses** — they are not required to pass, but they are valuable signals.
+Build a small product management interface for Fifty Flowers' catalog. The interface must let an internal user manage flower products with full CRUD, media handling, search and filtering. Senior-level concerns across UX (optimistic UI, soft delete with undo, async validation), testing, infrastructure (Docker + self-hosted DB + Drizzle), performance (image optimization, pagination) are offered as **optional bonuses** — they are not required to pass, but they are valuable signals.
 
-Estimated effort: **3.5h** for the required scope, **+1h** if you tackle 1-2 bonuses.
+Estimated effort: **3.5h** for the required scope, **+1-2h** if you tackle 2-3 bonuses. Each bonus has a rough estimated time below — use it as guidance, not a contract.
 
 ## Product Data Structure
 
@@ -50,13 +50,27 @@ The price displayed in the list MUST format with the unit (e.g. `"$12.50 / bunch
 
 ## Bonuses (optional)
 
-These are **not required** and their absence does **not** disqualify your submission. Pick any you want to demonstrate Senior-level depth — quality matters more than quantity.
+These are **not required** and their absence does **not** disqualify your submission. Pick any you want to demonstrate Senior-level depth — **quality matters more than quantity**. Estimated times are rough guidance to help you allocate effort, not a contract.
 
-- **Sort** by name (asc/desc) and price (asc/desc) in the list.
-- **Optimistic UI with rollback**: delete and edit show optimistic state and revert visibly on error. Simulate failure with a `?fail=1` query param.
-- **Soft delete + Undo**: deletion is soft and a `sonner` toast offers Undo for **5 seconds**.
-- **Name uniqueness async refine** in Zod — server-side check against the data store.
-- **At least 1 Vitest test** of the Zod schema covering happy path and 2 edge cases.
+### UX & validation
+
+- **Sort** by name (asc/desc) and price (asc/desc) in the list. _(~15 min)_
+- **Optimistic UI with rollback**: delete and edit show optimistic state and revert visibly on error. Simulate failure with a `?fail=1` query param. _(~30-45 min)_
+- **Soft delete + Undo**: deletion is soft and a `sonner` toast offers Undo for **5 seconds**. _(~20-30 min)_
+- **Name uniqueness async refine** in Zod — server-side check against the data store. _(~15-20 min)_
+
+### Testing
+
+- **At least 1 Vitest test** of the Zod schema covering happy path and 2 edge cases. _(~15 min)_
+
+### Infrastructure & data
+
+- **Self-hosted persistence layer**: replace the JSON file with a real database. Provide a `docker-compose.yml` that runs the app + database (your choice: Postgres or SQLite via `better-sqlite3`). Use **Drizzle ORM** with at least 1 migration. _(~45-60 min)_
+
+### Performance & media
+
+- **Sharp image optimization** on upload: resize main image to max 1200px width and generate a 400x400 thumbnail. Persist both URLs (`url`, `thumb_url`) and use the thumb in list views. _(~20-30 min)_
+- **Cursor-based pagination** for the product list: the list endpoint accepts `cursor` and `limit`; the UI shows a "Load more" button or infinite scroll. _(~30-45 min)_
 
 ## Technical requirements
 
@@ -68,7 +82,7 @@ These are **not required** and their absence does **not** disqualify your submis
 - **Drag-and-drop**: **`@dnd-kit/sortable`** for image reorder.
 - **Persistence**: a JSON file (`data/products.json`) with an in-memory singleton during runtime is sufficient. No external database required.
 
-For bonuses you may add: `sonner` (toasts), `vitest` (testing). Free choice for optimistic UI implementation (`useFetcher`, TanStack Query, etc.).
+For bonuses you may add: `sonner` (toasts), `vitest` (testing), `drizzle-orm` + `better-sqlite3` or `pg` (persistence bonus), `sharp` (image optimization bonus), Docker Compose (persistence bonus). Free choice for optimistic UI implementation (`useFetcher`, TanStack Query, etc.).
 
 ## What we're NOT testing
 
@@ -77,7 +91,6 @@ For bonuses you may add: `sonner` (toasts), `vitest` (testing). Free choice for 
 - Lazy loading
 - Authentication
 - Complex animations
-- Pagination
 
 ## Deliverables
 

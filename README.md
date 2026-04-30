@@ -11,6 +11,6 @@ Read the full requirements in [`Technical_Test.md`](./Technical_Test.md).
    - Your implementation as the diff
    - A `README.md` explaining setup, scripts, and your technical decisions
    - A demo (video or deployed link)
-3. Estimated effort: ~3.5h required, +1h if you tackle bonuses.
+3. Estimated effort: ~3.5h required, +1-2h if you tackle 2-3 bonuses.
 
 Bonuses are optional and do not affect the baseline evaluation. They are valued as positive signals of Senior-level depth.
