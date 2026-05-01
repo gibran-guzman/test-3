@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Fifty Flowers Brand Palette */
+  --color-primary: #15803d;     /* Green 700 */
+  --color-primary-dark: #166534;/* Green 800 */
+  --color-primary-light: #22c55e;/* Green 500 */
+  
+  --color-secondary: #be185d;   /* Pink 700 - for floral accents */
+  --color-secondary-dark: #9d174d;
+  --color-secondary-light: #ec4899;
+  
+  --color-background: #ffffff;
+  --color-foreground: #09090b;
+
+  --color-muted: #f4f4f5;
+  --color-muted-foreground: #71717a;
+
+  --color-border: #e4e4e7;
+  --color-input: #e4e4e7;
+  --color-ring: #15803d;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+}
+
+@layer base {
+  :root {
+    --background: var(--color-background);
+    --foreground: var(--color-foreground);
+  }
+
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
