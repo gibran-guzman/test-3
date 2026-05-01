@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSubmit } from "react-router";
+import { useSubmit, useNavigation } from "react-router";
 import type { Route } from "./+types/home";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -25,6 +25,7 @@ import {
 } from "~/components/ui/dialog";
 import { ProductFormDialog } from "~/components/product/ProductFormDialog";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 const CATEGORY_OPTIONS = [
   { value: "roses", label: "Roses" },
@@ -178,7 +179,15 @@ export async function action({ request }: Route.ActionArgs) {
   }
 }
 
-function DeleteProductButton({ id, onDelete }: { id: string, onDelete: (id: string) => void }) {
+function DeleteProductButton({
+  id,
+  onDelete,
+  triggerDisabled,
+}: {
+  id: string;
+  onDelete: (id: string) => void;
+  triggerDisabled?: boolean;
+}) {
   const [open, setOpen] = useState(false);
 
   const handleDelete = () => {
@@ -189,7 +198,7 @@ function DeleteProductButton({ id, onDelete }: { id: string, onDelete: (id: stri
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="destructive" size="sm">
+        <Button variant="destructive" size="sm" disabled={triggerDisabled}>
           Delete
         </Button>
       </DialogTrigger>
@@ -238,12 +247,20 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function Home({ loaderData }: Route.ComponentProps) {
   const { products, q, categories } = loaderData;
   const submit = useSubmit();
+  const navigation = useNavigation();
+
+  const isPostSubmitting =
+    navigation.state === "submitting" &&
+    navigation.formMethod?.toLowerCase() === "post";
+  const isListLoading = navigation.state === "loading";
+  const isCatalogBusy = isListLoading || isPostSubmitting;
 
   const [searchQuery, setSearchQuery] = useState(q);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     categories?.filter((value) => value !== "all") ?? []
   );
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const isSearchDebouncing = searchQuery !== debouncedSearch;
 
   useEffect(() => {
     setSelectedCategories(categories?.filter((value) => value !== "all") ?? []);
@@ -309,19 +326,29 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </header>
 
       <div className="flex flex-col md:flex-row gap-4 mb-8">
-        <Input
-          type="search"
-          placeholder="Search products by name..."
-          className="max-w-sm"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <div className="relative max-w-sm w-full">
+          <Input
+            type="search"
+            placeholder="Search products by name..."
+            className="max-w-sm pr-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-busy={isSearchDebouncing || isListLoading}
+          />
+          {(isSearchDebouncing || isListLoading) && (
+            <Loader2
+              className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
+              aria-hidden
+            />
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             size="sm"
             variant={selectedCategories.length === 0 ? "default" : "outline"}
             onClick={clearCategories}
+            disabled={isCatalogBusy}
           >
             All Categories
           </Button>
@@ -334,6 +361,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 size="sm"
                 variant={isSelected ? "default" : "outline"}
                 onClick={() => handleCategoryToggle(option.value)}
+                disabled={isCatalogBusy}
               >
                 {option.label}
               </Button>
@@ -342,7 +370,26 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      <main>
+      {isSearchDebouncing && (
+        <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden />
+          Searching…
+        </p>
+      )}
+
+      <main className="relative min-h-[200px]">
+        {isCatalogBusy && (
+          <div
+            className="absolute inset-0 z-10 flex items-start justify-center rounded-lg bg-background/60 pt-10 backdrop-blur-[1px]"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <span className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm">
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              {isPostSubmitting ? "Applying changes…" : "Loading products…"}
+            </span>
+          </div>
+        )}
         {products.length === 0 ? (
           <div className="border border-border rounded-lg p-12 text-center">
             <p className="text-muted-foreground text-lg">No products found.</p>
@@ -393,7 +440,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     product={product}
                     trigger={<Button variant="outline" size="sm">Edit</Button>}
                   />
-                  <DeleteProductButton id={product.id!} onDelete={handleDelete} />
+                  <DeleteProductButton
+                    id={product.id!}
+                    onDelete={handleDelete}
+                    triggerDisabled={isPostSubmitting}
+                  />
                 </CardFooter>
               </Card>
             ))}
