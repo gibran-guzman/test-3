@@ -88,9 +88,11 @@ export function ProductFormDialog({
     handleSubmit,
     reset,
     control,
-    formState: { errors },
+    trigger: triggerValidation,
+    formState: { errors, isValid },
   } = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
+    mode: "all",
     defaultValues: {
       name: product?.name || "",
       price: product?.price || 0,
@@ -152,6 +154,13 @@ export function ProductFormDialog({
     };
   }, [fields]);
 
+  // Ensure isValid updates correctly when images are added/removed (React Hook Form gotcha)
+  useEffect(() => {
+    if (open) {
+      triggerValidation("images");
+    }
+  }, [fields, open, triggerValidation]);
+
   useEffect(() => {
     // Reset form with appropriate entity data upon opening mapping modal
     if (open) {
@@ -175,11 +184,11 @@ export function ProductFormDialog({
   useEffect(() => {
     const data = fetcher.data as
       | {
-          success?: boolean;
-          operation?: string;
-          errors?: Record<string, string[]>;
-          error?: string;
-        }
+        success?: boolean;
+        operation?: string;
+        errors?: Record<string, string[]>;
+        error?: string;
+      }
       | undefined;
 
     if (
@@ -430,7 +439,12 @@ export function ProductFormDialog({
             </div>
           )}
 
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="flex justify-end gap-2 mt-4 items-center">
+            {Object.keys(errors).length > 0 && !isValid && (
+              <span className="text-xs text-red-500 font-medium mr-auto">
+                Missing: {Object.keys(errors).join(", ")}
+              </span>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -438,7 +452,7 @@ export function ProductFormDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !isValid}>
               {isSubmitting ? "Saving..." : "Save Product"}
             </Button>
           </div>
