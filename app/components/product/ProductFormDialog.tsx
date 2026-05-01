@@ -403,7 +403,7 @@ export function ProductFormDialog({
                 items={fields.map((f) => f.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-2 scrollbar-thin">
                   {fields.map((field, index) => (
                     <SortableImageItem
                       key={field.id}

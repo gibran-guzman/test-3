@@ -24,6 +24,7 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { ProductFormDialog } from "~/components/product/ProductFormDialog";
+import { ProductImageGallery } from "~/components/product/ProductImageGallery";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -402,17 +403,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {products.map((product) => (
               <Card key={product.id} className="overflow-hidden flex flex-col">
                 <div className="aspect-square bg-muted relative">
-                  {product.images.length > 0 ? (
-                    <img
-                      src={product.images[0].url}
-                      alt={product.images[0].alt_text}
-                      className="object-cover w-full h-full"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center w-full h-full text-muted-foreground">
-                      No Image
-                    </div>
-                  )}
+                  <ProductImageGallery images={product.images} className="w-full h-full" />
                 </div>
                 <CardContent className="p-4 flex-1">
                   <div className="flex justify-between items-start gap-2 mb-2">

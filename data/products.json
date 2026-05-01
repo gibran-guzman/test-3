@@ -79,6 +79,10 @@
       {
         "url": "http://localhost:5173/uploads/1777609626258-11aa3e2f-aa37-43de-860d-3c667ce45878.png",
         "alt_text": "Bouquette premium full"
+      },
+      {
+        "url": "http://localhost:5173/uploads/1777612389799-1363c71d-c28f-46e1-b7bc-8f599123dcf0.jpg",
+        "alt_text": "respla"
       }
     ],
     "isDeleted": false
@@ -101,6 +105,7 @@
         "alt_text": "respla"
       }
     ],
-    "isDeleted": false
+    "isDeleted": true,
+    "deletedAt": "2026-05-01T05:09:08.837Z"
   }
 ]
