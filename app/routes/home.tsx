@@ -42,17 +42,10 @@ type ImagePayload = {
 };
 
 async function persistUploadedImage(request: Request, file: File): Promise<string> {
-  const uploadsDir = path.resolve(process.cwd(), "public", "uploads");
-  await fs.mkdir(uploadsDir, { recursive: true });
-
-  const fileExtension = path.extname(file.name) || ".bin";
-  const fileName = `${Date.now()}-${crypto.randomUUID()}${fileExtension}`;
-  const diskPath = path.join(uploadsDir, fileName);
-
   const bytes = new Uint8Array(await file.arrayBuffer());
-  await fs.writeFile(diskPath, bytes);
-
-  return new URL(`/uploads/${fileName}`, request.url).toString();
+  const base64 = Buffer.from(bytes).toString("base64");
+  const mimeType = file.type || "image/jpeg";
+  return `data:${mimeType};base64,${base64}`;
 }
 
 export function meta({}: Route.MetaArgs) {
