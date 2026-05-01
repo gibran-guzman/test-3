@@ -22,13 +22,14 @@ import {
 } from "~/components/ui/dialog";
 import { ProductFormDialog } from "~/components/product/ProductFormDialog";
 import { toast } from "sonner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
+
+const CATEGORY_OPTIONS = [
+  { value: "roses", label: "Roses" },
+  { value: "tulips", label: "Tulips" },
+  { value: "sunflowers", label: "Sunflowers" },
+  { value: "hydrangeas", label: "Hydrangeas" },
+  { value: "mixed", label: "Mixed" },
+] as const;
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -162,25 +163,50 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { products, q, category } = loaderData;
+  const { products, q, categories } = loaderData;
   const submit = useSubmit();
 
   const [searchQuery, setSearchQuery] = useState(q);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    categories?.filter((value) => value !== "all") ?? []
+  );
   const debouncedSearch = useDebounce(searchQuery, 300);
+
+  useEffect(() => {
+    setSelectedCategories(categories?.filter((value) => value !== "all") ?? []);
+  }, [categories]);
+
+  const submitFilters = (nextSearch: string, nextCategories: string[]) => {
+    const formData = new FormData();
+    formData.set("q", nextSearch);
+    if (nextCategories.length === 0) {
+      formData.set("category", "all");
+    } else {
+      nextCategories.forEach((categoryValue) => {
+        formData.append("category", categoryValue);
+      });
+    }
+    submit(formData, { replace: true });
+  };
 
   // Trigger form submission when the debounced search value changes
   useEffect(() => {
-    // Only submit if it differs from the server state to prevent infinite loops
     if (debouncedSearch !== q) {
-      submit(
-        { q: debouncedSearch, category: category || "all" },
-        { replace: true }
-      );
+      submitFilters(debouncedSearch, selectedCategories);
     }
-  }, [debouncedSearch, q, category, submit]);
+  }, [debouncedSearch, q, selectedCategories]);
 
-  const handleCategoryChange = (val: string) => {
-    submit({ q: searchQuery, category: val }, { replace: true });
+  const handleCategoryToggle = (categoryValue: string) => {
+    const nextCategories = selectedCategories.includes(categoryValue)
+      ? selectedCategories.filter((value) => value !== categoryValue)
+      : [...selectedCategories, categoryValue];
+    setSelectedCategories(nextCategories);
+    submitFilters(searchQuery, nextCategories);
+  };
+
+  const clearCategories = () => {
+    setSelectedCategories([]);
+    submitFilters(searchQuery, []);
   };
 
   const handleDelete = (id: string) => {
@@ -217,19 +243,30 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <Select value={category || "all"} onValueChange={handleCategoryChange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="roses">Roses</SelectItem>
-            <SelectItem value="tulips">Tulips</SelectItem>
-            <SelectItem value="sunflowers">Sunflowers</SelectItem>
-            <SelectItem value="hydrangeas">Hydrangeas</SelectItem>
-            <SelectItem value="mixed">Mixed</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={selectedCategories.length === 0 ? "default" : "outline"}
+            onClick={clearCategories}
+          >
+            All Categories
+          </Button>
+          {CATEGORY_OPTIONS.map((option) => {
+            const isSelected = selectedCategories.includes(option.value);
+            return (
+              <Button
+                key={option.value}
+                type="button"
+                size="sm"
+                variant={isSelected ? "default" : "outline"}
+                onClick={() => handleCategoryToggle(option.value)}
+              >
+                {option.label}
+              </Button>
+            );
+          })}
+        </div>
       </div>
 
       <main>
