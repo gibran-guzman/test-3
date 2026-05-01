@@ -9,6 +9,8 @@ import { useDebounce } from "~/hooks/useDebounce";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardFooter } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
+import { ProductSchema } from "~/models/product.schema";
+import { AddProductDialog } from "~/components/product/AddProductDialog";
 import {
   Select,
   SelectContent,
@@ -22,6 +24,51 @@ export function meta({}: Route.MetaArgs) {
     { title: "Fifty Flowers - Admin" },
     { name: "description", content: "Product Management Interface" },
   ];
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  if (request.method !== "POST") {
+    return Response.json({ error: "Method Not Allowed" }, { status: 405 });
+  }
+
+  const formData = await request.formData();
+
+  // Reconstruct nested payload from extracted flat formData
+  const payload = {
+    name: formData.get("name"),
+    price: Number(formData.get("price")),
+    stock_quantity: Number(formData.get("stock_quantity")),
+    category: formData.get("category"),
+    unit_of_sale: formData.get("unit_of_sale"),
+    description: formData.get("description"),
+    images: [
+      {
+        url: formData.get("imageUrl"),
+        alt_text: formData.get("imageAlt"),
+      },
+    ],
+  };
+
+  const result = ProductSchema.omit({
+    id: true,
+    isDeleted: true,
+    deletedAt: true,
+  }).safeParse(payload);
+
+  if (!result.success) {
+    return Response.json(
+      { errors: result.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+
+  // Add default properties explicitly required by the base schema
+  const product = await db.create({
+    ...result.data,
+    isDeleted: false,
+  });
+
+  return Response.json({ success: true, product }, { status: 201 });
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -61,9 +108,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen bg-background p-8 container mx-auto">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-primary">Fifty Flowers</h1>
-        <p className="text-muted-foreground mt-2">Product Management Catalog</p>
+      <header className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-primary">Fifty Flowers</h1>
+          <p className="text-muted-foreground mt-2">
+            Product Management Catalog
+          </p>
+        </div>
+        <AddProductDialog />
       </header>
 
       <div className="flex flex-col md:flex-row gap-4 mb-8">

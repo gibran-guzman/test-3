@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "26f588a4-1b89-43cd-820e-31b4c216a812",
+    "name": "Rosas finas",
+    "price": 15,
+    "stock_quantity": 9,
+    "unit_of_sale": "bunch",
+    "description": "Bellas rosas",
+    "category": "tulips",
+    "images": [
+      {
+        "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTWHOk7aLSqIbgRtz-6Zg57d2zMaRlIRdTqo-1nwdWIMDM81R7rjNc5aPcN9BESBQfalVrPRSuWo_goUOPqwyR6LDh6nIu5IvnzJ6QZamsV9A&s=10",
+        "alt_text": "Rosas finas"
+      }
+    ],
+    "isDeleted": false
+  }
+]
