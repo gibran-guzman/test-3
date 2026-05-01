@@ -1,14 +1,16 @@
-import fs from "fs/promises";
-import path from "path";
 import crypto from "crypto";
 import { ProductSchema, type Product } from "../models/product.schema";
+import { Redis } from "@upstash/redis";
 
 class ProductService {
   private static instance: ProductService;
-  private dbPath: string;
+  private redis: Redis;
 
   private constructor() {
-    this.dbPath = path.resolve(process.cwd(), "data", "products.json");
+    this.redis = new Redis({
+      url: process.env.KV_REST_API_URL || "",
+      token: process.env.KV_REST_API_TOKEN || "",
+    });
   }
 
   public static getInstance(): ProductService {
@@ -19,32 +21,18 @@ class ProductService {
   }
 
   /**
-   * Ensures the JSON file and directory exist before reading/writing.
-   */
-  private async ensureDbExists(): Promise<void> {
-    try {
-      await fs.access(this.dbPath);
-    } catch {
-      await fs.mkdir(path.dirname(this.dbPath), { recursive: true });
-      await fs.writeFile(this.dbPath, "[]", "utf-8");
-    }
-  }
-
-  /**
    * Reads raw data from the DB.
    */
   private async readDb(): Promise<Product[]> {
-    await this.ensureDbExists();
-    const data = await fs.readFile(this.dbPath, "utf-8");
-    return JSON.parse(data) as Product[];
+    const data = await this.redis.get<Product[]>("products");
+    return data || [];
   }
 
   /**
    * Writes the full array back to the JSON file.
    */
   private async writeDb(data: Product[]): Promise<void> {
-    await this.ensureDbExists();
-    await fs.writeFile(this.dbPath, JSON.stringify(data, null, 2), "utf-8");
+    await this.redis.set("products", data);
   }
 
   /**
