@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useSubmit, useFetcher } from "react-router";
 import type { Route } from "./+types/home";
+import fs from "node:fs/promises";
+import path from "node:path";
+import crypto from "node:crypto";
 
 import { db } from "~/services/db.server";
 import { formatPrice } from "~/lib/format";
@@ -31,6 +34,25 @@ const CATEGORY_OPTIONS = [
   { value: "mixed", label: "Mixed" },
 ] as const;
 
+type ImagePayload = {
+  url: string;
+  alt_text: string;
+};
+
+async function persistUploadedImage(request: Request, file: File): Promise<string> {
+  const uploadsDir = path.resolve(process.cwd(), "public", "uploads");
+  await fs.mkdir(uploadsDir, { recursive: true });
+
+  const fileExtension = path.extname(file.name) || ".bin";
+  const fileName = `${Date.now()}-${crypto.randomUUID()}${fileExtension}`;
+  const diskPath = path.join(uploadsDir, fileName);
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  await fs.writeFile(diskPath, bytes);
+
+  return new URL(`/uploads/${fileName}`, request.url).toString();
+}
+
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Fifty Flowers - Admin" },
@@ -59,14 +81,28 @@ export async function action({ request }: Route.ActionArgs) {
 
   // Parse images payload JSON coming from the form
   const rawImages = formData.get("images_payload");
-  let images = [];
+  let images: ImagePayload[] = [];
   if (rawImages) {
     try {
-      images = JSON.parse(rawImages as string);
+      const parsed = JSON.parse(rawImages as string) as ImagePayload[];
+      if (Array.isArray(parsed)) {
+        images = parsed;
+      }
     } catch {
       // fallback
     }
   }
+
+  const resolvedImages = await Promise.all(
+    images.map(async (image, index) => {
+      const uploadedFile = formData.get(`image_file_${index}`);
+      if (uploadedFile instanceof File && uploadedFile.size > 0) {
+        const persistedUrl = await persistUploadedImage(request, uploadedFile);
+        return { ...image, url: persistedUrl };
+      }
+      return image;
+    })
+  );
 
   // Reconstruct nested payload from extracted flat formData for CREATE and UPDATE
   const payload = {
@@ -76,7 +112,7 @@ export async function action({ request }: Route.ActionArgs) {
     category: formData.get("category"),
     unit_of_sale: formData.get("unit_of_sale"),
     description: formData.get("description"),
-    images,
+    images: resolvedImages,
   };
 
   const result = ProductSchema.omit({

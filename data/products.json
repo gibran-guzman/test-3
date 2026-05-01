@@ -64,6 +64,23 @@
         "alt_text": "Bouquette premium full"
       }
     ],
+    "isDeleted": true,
+    "deletedAt": "2026-05-01T04:27:08.911Z"
+  },
+  {
+    "id": "7c7e8780-7a7c-43ae-a37d-d0a5bb4bf2b7",
+    "name": "Pandora",
+    "price": 70,
+    "stock_quantity": 9,
+    "unit_of_sale": "bouquet",
+    "description": "Bouquet premium",
+    "category": "sunflowers",
+    "images": [
+      {
+        "url": "http://localhost:5173/uploads/1777609626258-11aa3e2f-aa37-43de-860d-3c667ce45878.png",
+        "alt_text": "Bouquette premium full"
+      }
+    ],
     "isDeleted": false
   }
 ]
