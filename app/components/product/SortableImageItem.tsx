@@ -1,4 +1,5 @@
 import React from "react";
+import type { UseFormRegisterReturn } from "react-hook-form";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2 } from "lucide-react";
@@ -11,7 +12,7 @@ interface SortableImageItemProps {
   url: string;
   index: number;
   error?: string;
-  registerAlt: any;
+  registerAlt: UseFormRegisterReturn;
   onRemove: () => void;
 }
 

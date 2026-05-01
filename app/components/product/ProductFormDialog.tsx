@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,12 +14,11 @@ import {
   DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { PlusIcon, ImagePlusIcon } from "lucide-react";
+import { ImagePlusIcon } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -62,7 +61,7 @@ const FormSchema = z.object({
         id: z.string(),
         url: z.string().url("Valid URL or file required"),
         alt_text: z.string().min(1, "Alt text is mandatory"),
-        file: z.any().optional(), // Stores the actual File if newly uploaded
+        file: z.custom<File>((value) => value instanceof File).optional(),
       })
     )
     .min(1, "At least one image is required"),
