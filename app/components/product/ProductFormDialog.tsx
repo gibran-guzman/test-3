@@ -174,7 +174,12 @@ export function ProductFormDialog({
 
   useEffect(() => {
     const data = fetcher.data as
-      | { success?: boolean; operation?: string; errors?: Record<string, string[]> }
+      | {
+          success?: boolean;
+          operation?: string;
+          errors?: Record<string, string[]>;
+          error?: string;
+        }
       | undefined;
 
     if (
@@ -188,6 +193,8 @@ export function ProductFormDialog({
       reset();
     } else if (data?.errors) {
       toast.error("Failed to save product. Check the form for details.");
+    } else if (data?.success === false && data.error) {
+      toast.error(data.error);
     }
   }, [fetcher.data, reset]);
 

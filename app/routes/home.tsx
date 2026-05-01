@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSubmit, useFetcher } from "react-router";
+import { useSubmit } from "react-router";
 import type { Route } from "./+types/home";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -62,82 +62,119 @@ export function meta({}: Route.MetaArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   if (request.method !== "POST") {
-    return Response.json({ error: "Method Not Allowed" }, { status: 405 });
-  }
-
-  const formData = await request.formData();
-  const _action = formData.get("_action") as string;
-  const id = formData.get("id") as string | null;
-
-  if (_action === "delete" && id) {
-    await db.softDelete(id);
-    return Response.json({ success: true, operation: "delete", id }, { status: 200 });
-  }
-
-  if (_action === "restore" && id) {
-    await db.restore(id);
-    return Response.json({ success: true, operation: "restore", id }, { status: 200 });
-  }
-
-  // Parse images payload JSON coming from the form
-  const rawImages = formData.get("images_payload");
-  let images: ImagePayload[] = [];
-  if (rawImages) {
-    try {
-      const parsed = JSON.parse(rawImages as string) as ImagePayload[];
-      if (Array.isArray(parsed)) {
-        images = parsed;
-      }
-    } catch {
-      // fallback
-    }
-  }
-
-  const resolvedImages = await Promise.all(
-    images.map(async (image, index) => {
-      const uploadedFile = formData.get(`image_file_${index}`);
-      if (uploadedFile instanceof File && uploadedFile.size > 0) {
-        const persistedUrl = await persistUploadedImage(request, uploadedFile);
-        return { ...image, url: persistedUrl };
-      }
-      return image;
-    })
-  );
-
-  // Reconstruct nested payload from extracted flat formData for CREATE and UPDATE
-  const payload = {
-    name: formData.get("name"),
-    price: Number(formData.get("price")),
-    stock_quantity: Number(formData.get("stock_quantity")),
-    category: formData.get("category"),
-    unit_of_sale: formData.get("unit_of_sale"),
-    description: formData.get("description"),
-    images: resolvedImages,
-  };
-
-  const result = ProductSchema.omit({
-    id: true,
-    isDeleted: true,
-    deletedAt: true,
-  }).safeParse(payload);
-
-  if (!result.success) {
     return Response.json(
-      { errors: result.error.flatten().fieldErrors, operation: _action },
-      { status: 400 }
+      { success: false, error: "Method Not Allowed" },
+      { status: 405 }
     );
   }
 
-  if (_action === "update" && id) {
-    const product = await db.update(id, result.data);
-    return Response.json({ success: true, operation: "update", product }, { status: 200 });
-  } else {
-    // Fallback to Create
+  let operation = "unknown";
+
+  try {
+    const formData = await request.formData();
+    operation = (formData.get("_action") as string) || "unknown";
+    const id = formData.get("id") as string | null;
+
+    if (operation === "delete" && id) {
+      await db.softDelete(id);
+      return Response.json(
+        { success: true, operation: "delete", id },
+        { status: 200 }
+      );
+    }
+
+    if (operation === "restore" && id) {
+      await db.restore(id);
+      return Response.json(
+        { success: true, operation: "restore", id },
+        { status: 200 }
+      );
+    }
+
+    // Parse images payload JSON coming from the form
+    const rawImages = formData.get("images_payload");
+    let images: ImagePayload[] = [];
+    if (rawImages) {
+      try {
+        const parsed = JSON.parse(rawImages as string) as ImagePayload[];
+        if (Array.isArray(parsed)) {
+          images = parsed;
+        }
+      } catch {
+        // fallback
+      }
+    }
+
+    const resolvedImages = await Promise.all(
+      images.map(async (image, index) => {
+        const uploadedFile = formData.get(`image_file_${index}`);
+        if (uploadedFile instanceof File && uploadedFile.size > 0) {
+          const persistedUrl = await persistUploadedImage(request, uploadedFile);
+          return { ...image, url: persistedUrl };
+        }
+        return image;
+      })
+    );
+
+    // Reconstruct nested payload from extracted flat formData for CREATE and UPDATE
+    const payload = {
+      name: formData.get("name"),
+      price: Number(formData.get("price")),
+      stock_quantity: Number(formData.get("stock_quantity")),
+      category: formData.get("category"),
+      unit_of_sale: formData.get("unit_of_sale"),
+      description: formData.get("description"),
+      images: resolvedImages,
+    };
+
+    const result = ProductSchema.omit({
+      id: true,
+      isDeleted: true,
+      deletedAt: true,
+    }).safeParse(payload);
+
+    if (!result.success) {
+      return Response.json(
+        {
+          success: false,
+          operation,
+          errors: result.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (operation === "update" && id) {
+      const product = await db.update(id, result.data);
+      return Response.json(
+        { success: true, operation: "update", product },
+        { status: 200 }
+      );
+    }
+
     const product = await db.create({
       ...result.data,
       isDeleted: false,
     });
-    return Response.json({ success: true, operation: "create", product }, { status: 201 });
+    return Response.json(
+      { success: true, operation: "create", product },
+      { status: 201 }
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "An unexpected error occurred";
+    const lower = message.toLowerCase();
+    const isNotFound =
+      lower.includes("not found") || lower.includes("has been deleted");
+
+    return Response.json(
+      {
+        success: false,
+        operation,
+        error: message,
+      },
+      { status: isNotFound ? 404 : 500 }
+    );
   }
 }
 
