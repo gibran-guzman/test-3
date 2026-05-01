@@ -49,9 +49,13 @@ class ProductService {
 
   /**
    * Return all products that are NOT soft deleted.
-   * Supports optional filtering by search query (q) and category.
+   * Supports optional filtering by search query (q) and one or many categories.
    */
-  public async getAll(filters?: { q?: string | null; category?: string | null }): Promise<Product[]> {
+  public async getAll(filters?: {
+    q?: string | null;
+    category?: string | null;
+    categories?: string[] | null;
+  }): Promise<Product[]> {
     let products = await this.readDb();
     products = products.filter((p) => !p.isDeleted);
 
@@ -60,7 +64,10 @@ class ProductService {
       products = products.filter((p) => p.name.toLowerCase().includes(lowerQ));
     }
 
-    if (filters?.category) {
+    const categories = filters?.categories?.filter(Boolean) ?? [];
+    if (categories.length > 0) {
+      products = products.filter((p) => categories.includes(p.category));
+    } else if (filters?.category) {
       products = products.filter((p) => p.category === filters.category);
     }
 

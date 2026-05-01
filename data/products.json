@@ -49,5 +49,21 @@
     ],
     "isDeleted": true,
     "deletedAt": "2026-05-01T03:50:17.334Z"
+  },
+  {
+    "id": "159345f2-e097-49d6-97ea-1a79c76540fc",
+    "name": "Bouquette",
+    "price": 50,
+    "stock_quantity": 10,
+    "unit_of_sale": "bouquet",
+    "description": "Bouquet premium",
+    "category": "sunflowers",
+    "images": [
+      {
+        "url": "blob:http://localhost:5173/a055ebce-3a43-4007-8a1c-a966d601c62c",
+        "alt_text": "Bouquette premium full"
+      }
+    ],
+    "isDeleted": false
   }
 ]

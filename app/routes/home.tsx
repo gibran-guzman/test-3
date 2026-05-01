@@ -56,6 +56,17 @@ export async function action({ request }: Route.ActionArgs) {
     return Response.json({ success: true, operation: "restore", id }, { status: 200 });
   }
 
+  // Parse images payload JSON coming from the form
+  const rawImages = formData.get("images_payload");
+  let images = [];
+  if (rawImages) {
+    try {
+      images = JSON.parse(rawImages as string);
+    } catch {
+      // fallback
+    }
+  }
+
   // Reconstruct nested payload from extracted flat formData for CREATE and UPDATE
   const payload = {
     name: formData.get("name"),
@@ -64,12 +75,7 @@ export async function action({ request }: Route.ActionArgs) {
     category: formData.get("category"),
     unit_of_sale: formData.get("unit_of_sale"),
     description: formData.get("description"),
-    images: [
-      {
-        url: formData.get("imageUrl"),
-        alt_text: formData.get("imageAlt"),
-      },
-    ],
+    images,
   };
 
   const result = ProductSchema.omit({
@@ -136,14 +142,23 @@ function DeleteProductButton({ id, onDelete }: { id: string, onDelete: (id: stri
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const q = url.searchParams.get("q") || "";
-  const category = url.searchParams.get("category") || "";
+  const rawCategories = url.searchParams
+    .getAll("category")
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const category = rawCategories[0] || "";
 
   const products = await db.getAll({
     q: q || null,
+    categories:
+      rawCategories.length > 0 && !rawCategories.includes("all")
+        ? rawCategories
+        : null,
     category: category && category !== "all" ? category : null,
   });
 
-  return { products, q, category };
+  return { products, q, category, categories: rawCategories };
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {

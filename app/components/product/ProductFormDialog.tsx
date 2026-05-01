@@ -1,9 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useFetcher } from "react-router";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { PlusIcon, ImagePlusIcon } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -22,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { SortableImageItem } from "./SortableImageItem";
 import type { action } from "~/routes/home";
 import type { Product } from "~/models/product.schema";
 
@@ -39,8 +56,16 @@ const FormSchema = z.object({
     message: "Invalid category",
   }),
   description: z.string().min(10, "Min 10 chars").max(200, "Max 200 chars"),
-  imageUrl: z.string().url("Valid URL required"),
-  imageAlt: z.string().min(1, "Alt text required"),
+  images: z
+    .array(
+      z.object({
+        id: z.string(),
+        url: z.string().url("Valid URL or file required"),
+        alt_text: z.string().min(1, "Alt text is mandatory"),
+        file: z.any().optional(), // Stores the actual File if newly uploaded
+      })
+    )
+    .min(1, "At least one image is required"),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -75,10 +100,58 @@ export function ProductFormDialog({
         (product?.unit_of_sale as FormValues["unit_of_sale"]) || undefined,
       category: (product?.category as FormValues["category"]) || undefined,
       description: product?.description || "",
-      imageUrl: product?.images?.[0]?.url || "",
-      imageAlt: product?.images?.[0]?.alt_text || "",
+      images: product?.images?.map((img) => ({
+        id: crypto.randomUUID(),
+        url: img.url,
+        alt_text: img.alt_text,
+      })) || [],
     },
   });
+
+  const { fields, append, remove, move } = useFieldArray({
+    control,
+    name: "images",
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = fields.findIndex((f) => f.id === active.id);
+      const newIndex = fields.findIndex((f) => f.id === over.id);
+      move(oldIndex, newIndex);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      newFiles.forEach((file) => {
+        // Create local object URL for preview
+        const url = URL.createObjectURL(file);
+        append({ id: crypto.randomUUID(), url, alt_text: "", file });
+      });
+      // Reset input so the same files can be chosen again if needed
+      e.target.value = "";
+    }
+  };
+
+  useEffect(() => {
+    // Clean up temporary URLs when component unmounts or resets
+    return () => {
+      fields.forEach((f) => {
+        if (f.file && f.url.startsWith("blob:")) {
+          URL.revokeObjectURL(f.url);
+        }
+      });
+    };
+  }, [fields]);
 
   useEffect(() => {
     // Reset form with appropriate entity data upon opening mapping modal
@@ -91,8 +164,11 @@ export function ProductFormDialog({
           (product?.unit_of_sale as FormValues["unit_of_sale"]) || undefined,
         category: (product?.category as FormValues["category"]) || undefined,
         description: product?.description || "",
-        imageUrl: product?.images?.[0]?.url || "",
-        imageAlt: product?.images?.[0]?.alt_text || "",
+        images: product?.images?.map((img) => ({
+          id: crypto.randomUUID(),
+          url: img.url,
+          alt_text: img.alt_text,
+        })) || [],
       });
     }
   }, [open, product, reset]);
@@ -118,14 +194,31 @@ export function ProductFormDialog({
 
   const onValidSubmit = (data: FormValues) => {
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) =>
-      formData.append(key, String(value))
-    );
+    Object.entries(data).forEach(([key, value]) => {
+      if (key !== "images") {
+        formData.append(key, String(value));
+      }
+    });
+
+    // Instead of sending raw Form elements, serialize image metadata 
+    const imagePayload = data.images.map((img) => ({
+      url: img.url,
+      alt_text: img.alt_text,
+    }));
+    formData.append("images_payload", JSON.stringify(imagePayload));
+
+    // Handle actual files if any were uploaded (they'll be sent as multipart)
+    data.images.forEach((img, idx) => {
+      if (img.file) {
+        formData.append(`image_file_${idx}`, img.file);
+      }
+    });
+
     formData.append("_action", isEdit ? "update" : "create");
     if (isEdit && product?.id) {
       formData.append("id", product.id);
     }
-    fetcher.submit(formData, { method: "POST" });
+    fetcher.submit(formData, { method: "POST", encType: "multipart/form-data" });
   };
 
   return (
@@ -251,25 +344,63 @@ export function ProductFormDialog({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="imageUrl">Image URL</Label>
-              <Input id="imageUrl" {...register("imageUrl")} />
-              {errors.imageUrl && (
-                <p className="text-red-500 text-xs">
-                  {errors.imageUrl.message}
-                </p>
-              )}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Product Images</Label>
+              <div>
+                <Input
+                  type="file"
+                  id="image-upload"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById("image-upload")?.click()}
+                >
+                  <ImagePlusIcon className="mr-2 size-4" />
+                  Add Images
+                </Button>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="imageAlt">Image Alt Text</Label>
-              <Input id="imageAlt" {...register("imageAlt")} />
-              {errors.imageAlt && (
-                <p className="text-red-500 text-xs">
-                  {errors.imageAlt.message}
-                </p>
-              )}
-            </div>
+
+            {fields.length === 0 && (
+              <div className="border border-dashed rounded-lg p-6 text-center text-sm text-muted-foreground">
+                No images added. Click "Add Images" to select files.
+              </div>
+            )}
+
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={fields.map((f) => f.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                  {fields.map((field, index) => (
+                    <SortableImageItem
+                      key={field.id}
+                      id={field.id}
+                      url={field.url}
+                      index={index}
+                      registerAlt={register(`images.${index}.alt_text`)}
+                      error={errors.images?.[index]?.alt_text?.message || errors.images?.[index]?.url?.message}
+                      onRemove={() => remove(index)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+            {errors.images?.root && (
+              <p className="text-red-500 text-xs">{errors.images.root.message}</p>
+            )}
           </div>
 
           {/* Action-based Server Validation UX Fallback */}
