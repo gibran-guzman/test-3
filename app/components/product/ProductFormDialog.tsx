@@ -260,10 +260,17 @@ export function ProductFormDialog({
                 name="category"
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
+                    <SelectTrigger
+                      id="category"
+                      className="w-full bg-background"
+                      aria-label="Category"
+                    >
                       <SelectValue placeholder="Select Category" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent
+                      position="popper"
+                      className="z-[100] w-[var(--radix-select-trigger-width)] shadow-md"
+                    >
                       <SelectItem value="roses">Roses</SelectItem>
                       <SelectItem value="tulips">Tulips</SelectItem>
                       <SelectItem value="sunflowers">Sunflowers</SelectItem>
@@ -321,10 +328,17 @@ export function ProductFormDialog({
                 name="unit_of_sale"
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
+                    <SelectTrigger
+                      id="unit_of_sale"
+                      className="w-full bg-background"
+                      aria-label="Unit of sale"
+                    >
                       <SelectValue placeholder="Select Unit" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent
+                      position="popper"
+                      className="z-[100] w-[var(--radix-select-trigger-width)] shadow-md"
+                    >
                       <SelectItem value="stem">Stem</SelectItem>
                       <SelectItem value="bunch">Bunch</SelectItem>
                       <SelectItem value="bouquet">Bouquet</SelectItem>

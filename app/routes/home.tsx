@@ -435,7 +435,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     Stock: {product.stock_quantity}
                   </span>
                 </div>
-                <CardFooter className="p-4 pt-2 flex items-center justify-end gap-2 border-t mt-auto">
+                <CardFooter className="p-4 pt-2 flex items-center justify-center gap-2 border-t mt-auto">
                   <ProductFormDialog
                     product={product}
                     trigger={<Button variant="outline" size="sm">Edit</Button>}

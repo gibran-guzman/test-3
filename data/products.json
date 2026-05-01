@@ -82,5 +82,25 @@
       }
     ],
     "isDeleted": false
+  },
+  {
+    "id": "638347fc-4fc7-433a-a4b3-c6ab1fecabe8",
+    "name": "Lovely",
+    "price": 80,
+    "stock_quantity": 4,
+    "unit_of_sale": "bunch",
+    "description": "Lovely pack",
+    "category": "sunflowers",
+    "images": [
+      {
+        "url": "http://localhost:5173/uploads/1777611156867-2f01f168-d35d-4d98-8cc8-1681f31d076c.jpg",
+        "alt_text": "Levely pre"
+      },
+      {
+        "url": "http://localhost:5173/uploads/1777611156868-d27e4f77-feab-455c-9c26-2507c95391bb.png",
+        "alt_text": "respla"
+      }
+    ],
+    "isDeleted": false
   }
 ]
