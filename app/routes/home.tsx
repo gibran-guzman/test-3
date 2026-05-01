@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSubmit } from "react-router";
+import { useSubmit, useFetcher } from "react-router";
 import type { Route } from "./+types/home";
 
 import { db } from "~/services/db.server";
@@ -7,10 +7,21 @@ import { formatPrice } from "~/lib/format";
 import { useDebounce } from "~/hooks/useDebounce";
 
 import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardFooter } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { ProductSchema } from "~/models/product.schema";
-import { AddProductDialog } from "~/components/product/AddProductDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "~/components/ui/dialog";
+import { ProductFormDialog } from "~/components/product/ProductFormDialog";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -32,8 +43,20 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
+  const _action = formData.get("_action") as string;
+  const id = formData.get("id") as string | null;
 
-  // Reconstruct nested payload from extracted flat formData
+  if (_action === "delete" && id) {
+    await db.softDelete(id);
+    return Response.json({ success: true, operation: "delete", id }, { status: 200 });
+  }
+
+  if (_action === "restore" && id) {
+    await db.restore(id);
+    return Response.json({ success: true, operation: "restore", id }, { status: 200 });
+  }
+
+  // Reconstruct nested payload from extracted flat formData for CREATE and UPDATE
   const payload = {
     name: formData.get("name"),
     price: Number(formData.get("price")),
@@ -57,18 +80,57 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (!result.success) {
     return Response.json(
-      { errors: result.error.flatten().fieldErrors },
+      { errors: result.error.flatten().fieldErrors, operation: _action },
       { status: 400 }
     );
   }
 
-  // Add default properties explicitly required by the base schema
-  const product = await db.create({
-    ...result.data,
-    isDeleted: false,
-  });
+  if (_action === "update" && id) {
+    const product = await db.update(id, result.data);
+    return Response.json({ success: true, operation: "update", product }, { status: 200 });
+  } else {
+    // Fallback to Create
+    const product = await db.create({
+      ...result.data,
+      isDeleted: false,
+    });
+    return Response.json({ success: true, operation: "create", product }, { status: 201 });
+  }
+}
 
-  return Response.json({ success: true, product }, { status: 201 });
+function DeleteProductButton({ id, onDelete }: { id: string, onDelete: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+
+  const handleDelete = () => {
+    setOpen(false);
+    onDelete(id);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="destructive" size="sm">
+          Delete
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Are you absolutely sure?</DialogTitle>
+          <DialogDescription>
+            This action will soft-delete the product from the catalog. You will have 5 seconds to undo it via the notification that appears.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={handleDelete}>
+            Confirm Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -106,6 +168,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     submit({ q: searchQuery, category: val }, { replace: true });
   };
 
+  const handleDelete = (id: string) => {
+    submit({ _action: "delete", id }, { method: "POST" });
+    
+    toast.success("Product soft-deleted successfully", {
+      action: {
+        label: "Undo",
+        onClick: () => {
+          submit({ _action: "restore", id }, { method: "POST" });
+        },
+      },
+      duration: 5000,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background p-8 container mx-auto">
       <header className="mb-8 flex justify-between items-start">
@@ -115,7 +191,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             Product Management Catalog
           </p>
         </div>
-        <AddProductDialog />
+        <ProductFormDialog />
       </header>
 
       <div className="flex flex-col md:flex-row gap-4 mb-8">
@@ -179,13 +255,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     {product.description}
                   </p>
                 </CardContent>
-                <CardFooter className="p-4 pt-0 flex items-center justify-between">
+                <div className="px-4 pb-2 flex items-center justify-between">
                   <span className="font-bold text-primary">
                     {formatPrice(product.price, product.unit_of_sale)}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     Stock: {product.stock_quantity}
                   </span>
+                </div>
+                <CardFooter className="p-4 pt-2 flex items-center justify-end gap-2 border-t mt-auto">
+                  <ProductFormDialog
+                    product={product}
+                    trigger={<Button variant="outline" size="sm">Edit</Button>}
+                  />
+                  <DeleteProductButton id={product.id!} onDelete={handleDelete} />
                 </CardFooter>
               </Card>
             ))}

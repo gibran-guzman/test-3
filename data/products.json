@@ -2,8 +2,8 @@
   {
     "id": "26f588a4-1b89-43cd-820e-31b4c216a812",
     "name": "Rosas finas",
-    "price": 15,
-    "stock_quantity": 9,
+    "price": 150,
+    "stock_quantity": 8,
     "unit_of_sale": "bunch",
     "description": "Bellas rosas",
     "category": "tulips",
@@ -13,6 +13,41 @@
         "alt_text": "Rosas finas"
       }
     ],
-    "isDeleted": false
+    "isDeleted": true,
+    "deletedAt": "2026-05-01T03:47:22.520Z"
+  },
+  {
+    "id": "4b49886a-8db3-4cb2-bb61-547558344b2b",
+    "name": "Pandora",
+    "price": 40,
+    "stock_quantity": 6,
+    "unit_of_sale": "bouquet",
+    "description": "Pandoras flowers",
+    "category": "sunflowers",
+    "images": [
+      {
+        "url": "https://fresflor.com/wp-content/uploads/2025/08/PAND2.png",
+        "alt_text": "Pandora"
+      }
+    ],
+    "isDeleted": true,
+    "deletedAt": "2026-05-01T03:53:45.885Z"
+  },
+  {
+    "id": "02f5ffc3-e896-4063-840a-3976e0e31218",
+    "name": "Lovely",
+    "price": 67,
+    "stock_quantity": 4,
+    "unit_of_sale": "bouquet",
+    "description": "Lovely pack",
+    "category": "sunflowers",
+    "images": [
+      {
+        "url": "https://fresflor.com/wp-content/uploads/2025/11/BEARBOX7-420x420.png",
+        "alt_text": "Lovely"
+      }
+    ],
+    "isDeleted": true,
+    "deletedAt": "2026-05-01T03:50:17.334Z"
   }
 ]

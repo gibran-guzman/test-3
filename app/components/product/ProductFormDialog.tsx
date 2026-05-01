@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Form, useActionData, useNavigation, useSubmit } from "react-router";
-import { useForm } from "react-hook-form";
+import { useFetcher } from "react-router";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import type { action } from "~/routes/home";
+import type { Product } from "~/models/product.schema";
 
 const FormSchema = z.object({
   name: z
@@ -37,79 +38,110 @@ const FormSchema = z.object({
   category: z.enum(["roses", "tulips", "sunflowers", "hydrangeas", "mixed"], {
     message: "Invalid category",
   }),
-  description: z
-    .string()
-    .min(10, "Min 10 chars")
-    .max(200, "Max 200 chars"),
+  description: z.string().min(10, "Min 10 chars").max(200, "Max 200 chars"),
   imageUrl: z.string().url("Valid URL required"),
   imageAlt: z.string().min(1, "Alt text required"),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
 
-export function AddProductDialog() {
+export function ProductFormDialog({
+  product,
+  trigger,
+}: {
+  product?: Product;
+  trigger?: React.ReactNode;
+}) {
+  const isEdit = !!product;
   const [open, setOpen] = useState(false);
-  const submit = useSubmit();
-  const navigation = useNavigation();
-  
-  // Strict typing inferred directly from the route action
-  const actionData = useActionData<typeof action>();
+  const fetcher = useFetcher<typeof action>();
 
   const isSubmitting =
-    navigation.state === "submitting" && navigation.formMethod === "POST";
+    fetcher.state === "submitting" && fetcher.formMethod === "POST";
 
   const {
     register,
     handleSubmit,
-    setValue,
     reset,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      name: "",
-      price: 0,
-      stock_quantity: 0,
-      description: "",
-      imageUrl: "",
-      imageAlt: "",
+      name: product?.name || "",
+      price: product?.price || 0,
+      stock_quantity: product?.stock_quantity || 0,
+      unit_of_sale:
+        (product?.unit_of_sale as FormValues["unit_of_sale"]) || undefined,
+      category: (product?.category as FormValues["category"]) || undefined,
+      description: product?.description || "",
+      imageUrl: product?.images?.[0]?.url || "",
+      imageAlt: product?.images?.[0]?.alt_text || "",
     },
   });
 
   useEffect(() => {
-    // Narrow down the actionData type safely
-    const data = actionData as { success?: boolean; errors?: Record<string, string[]> } | undefined;
-    
-    if (data?.success) {
-      toast.success("Product created successfully!");
+    // Reset form with appropriate entity data upon opening mapping modal
+    if (open) {
+      reset({
+        name: product?.name || "",
+        price: product?.price || 0,
+        stock_quantity: product?.stock_quantity || 0,
+        unit_of_sale:
+          (product?.unit_of_sale as FormValues["unit_of_sale"]) || undefined,
+        category: (product?.category as FormValues["category"]) || undefined,
+        description: product?.description || "",
+        imageUrl: product?.images?.[0]?.url || "",
+        imageAlt: product?.images?.[0]?.alt_text || "",
+      });
+    }
+  }, [open, product, reset]);
+
+  useEffect(() => {
+    const data = fetcher.data as
+      | { success?: boolean; operation?: string; errors?: Record<string, string[]> }
+      | undefined;
+
+    if (
+      data?.success &&
+      (data.operation === "create" || data.operation === "update")
+    ) {
+      toast.success(
+        `Product ${data.operation === "create" ? "created" : "updated"} successfully!`
+      );
       setOpen(false);
       reset();
     } else if (data?.errors) {
-      toast.error("Failed to add product. Check the form for details.");
+      toast.error("Failed to save product. Check the form for details.");
     }
-  }, [actionData, reset]);
+  }, [fetcher.data, reset]);
 
   const onValidSubmit = (data: FormValues) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) =>
       formData.append(key, String(value))
     );
-    // Submit using React Router to hit our action
-    submit(formData, { method: "POST" });
+    formData.append("_action", isEdit ? "update" : "create");
+    if (isEdit && product?.id) {
+      formData.append("id", product.id);
+    }
+    fetcher.submit(formData, { method: "POST" });
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Add Product</Button>
+        {trigger || <Button>Add Product</Button>}
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Product</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit Product" : "Add New Product"}
+          </DialogTitle>
         </DialogHeader>
 
-        {/* Leverage RR7 Form component */}
-        <Form
+        {/* Leverage RR7 Fetcher Form for isolated nested list scopes */}
+        <fetcher.Form
           method="post"
           onSubmit={handleSubmit(onValidSubmit)}
           className="grid gap-4 py-4"
@@ -124,25 +156,24 @@ export function AddProductDialog() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select
-                value={undefined}
-                onValueChange={(val) =>
-                  setValue("category", val as FormValues["category"], {
-                    shouldValidate: true,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="roses">Roses</SelectItem>
-                  <SelectItem value="tulips">Tulips</SelectItem>
-                  <SelectItem value="sunflowers">Sunflowers</SelectItem>
-                  <SelectItem value="hydrangeas">Hydrangeas</SelectItem>
-                  <SelectItem value="mixed">Mixed</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="category"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="roses">Roses</SelectItem>
+                      <SelectItem value="tulips">Tulips</SelectItem>
+                      <SelectItem value="sunflowers">Sunflowers</SelectItem>
+                      <SelectItem value="hydrangeas">Hydrangeas</SelectItem>
+                      <SelectItem value="mixed">Mixed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.category && (
                 <p className="text-red-500 text-xs">
                   {errors.category.message}
@@ -172,7 +203,6 @@ export function AddProductDialog() {
                 min="0"
                 step="1"
                 onKeyDown={(e) => {
-                  // Prevent typing decimals, exponential notation, or negative signs
                   if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
                     e.preventDefault();
                   }
@@ -187,20 +217,22 @@ export function AddProductDialog() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="unit_of_sale">Unit</Label>
-              <Select
-                onValueChange={(val) =>
-                  setValue("unit_of_sale", val as FormValues["unit_of_sale"])
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="stem">Stem</SelectItem>
-                  <SelectItem value="bunch">Bunch</SelectItem>
-                  <SelectItem value="bouquet">Bouquet</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="unit_of_sale"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="stem">Stem</SelectItem>
+                      <SelectItem value="bunch">Bunch</SelectItem>
+                      <SelectItem value="bouquet">Bouquet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.unit_of_sale && (
                 <p className="text-red-500 text-xs">
                   {errors.unit_of_sale.message}
@@ -224,20 +256,24 @@ export function AddProductDialog() {
               <Label htmlFor="imageUrl">Image URL</Label>
               <Input id="imageUrl" {...register("imageUrl")} />
               {errors.imageUrl && (
-                <p className="text-red-500 text-xs">{errors.imageUrl.message}</p>
+                <p className="text-red-500 text-xs">
+                  {errors.imageUrl.message}
+                </p>
               )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="imageAlt">Image Alt Text</Label>
               <Input id="imageAlt" {...register("imageAlt")} />
               {errors.imageAlt && (
-                <p className="text-red-500 text-xs">{errors.imageAlt.message}</p>
+                <p className="text-red-500 text-xs">
+                  {errors.imageAlt.message}
+                </p>
               )}
             </div>
           </div>
 
           {/* Action-based Server Validation UX Fallback */}
-          {actionData && "errors" in actionData && (
+          {fetcher.data && "errors" in fetcher.data && (
             <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm mt-2 font-medium">
               Server validation failed. Please address the errors.
             </div>
@@ -255,7 +291,7 @@ export function AddProductDialog() {
               {isSubmitting ? "Saving..." : "Save Product"}
             </Button>
           </div>
-        </Form>
+        </fetcher.Form>
       </DialogContent>
     </Dialog>
   );
